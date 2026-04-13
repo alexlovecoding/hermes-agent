@@ -201,6 +201,19 @@ TOOLSETS = {
         "includes": []
     },
 
+    "lark": {
+        "description": "Lark/Feishu CLI integration for calendar, messaging, docs, wiki, sheets, tasks, and more via lark-cli",
+        "tools": [
+            "lark_auth_status", "lark_calendar_agenda", "lark_calendar_events",
+            "lark_im_send", "lark_im_reply", "lark_contact_search",
+            "lark_doc_create", "lark_doc_read", "lark_doc_update", "lark_doc_fetch", "lark_doc_search",
+            "lark_wiki_node_create", "lark_wiki_spaces_list", "lark_wiki_nodes_list",
+            "lark_sheet_read",
+            "lark_task_create", "lark_task_list", "lark_api_call", "lark_doctor"
+        ],
+        "includes": []
+    },
+
 
     # Scenario-specific toolsets
     
