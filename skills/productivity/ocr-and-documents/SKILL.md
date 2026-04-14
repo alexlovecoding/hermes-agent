@@ -31,24 +31,25 @@ Only use local extraction when: the file is local, web_extract fails, or you nee
 
 ## Step 2: Choose Local Extractor
 
-| Feature | pymupdf (~25MB) | marker-pdf (~3-5GB) |
-|---------|-----------------|---------------------|
-| **Text-based PDF** | ✅ | ✅ |
-| **Scanned PDF (OCR)** | ❌ | ✅ (90+ languages) |
-| **Tables** | ✅ (basic) | ✅ (high accuracy) |
-| **Equations / LaTeX** | ❌ | ✅ |
-| **Code blocks** | ❌ | ✅ |
-| **Forms** | ❌ | ✅ |
-| **Headers/footers removal** | ❌ | ✅ |
-| **Reading order detection** | ❌ | ✅ |
-| **Images extraction** | ✅ (embedded) | ✅ (with context) |
-| **Images → text (OCR)** | ❌ | ✅ |
-| **EPUB** | ✅ | ✅ |
-| **Markdown output** | ✅ (via pymupdf4llm) | ✅ (native, higher quality) |
-| **Install size** | ~25MB | ~3-5GB (PyTorch + models) |
-| **Speed** | Instant | ~1-14s/page (CPU), ~0.2s/page (GPU) |
+| Feature | pymupdf (~25MB) | opendataloader-pdf (~22MB) | marker-pdf (~3-5GB) |
+|---------|-----------------|----------------------------|---------------------|
+| **Text-based PDF** | ✅ | ✅ | ✅ |
+| **Scanned PDF (OCR)** | ❌ | ✅ (hybrid, 80+ languages) | ✅ |
+| **Tables** | ✅ (basic) | ✅ (0.93 accuracy, hybrid) | ✅ |
+| **Equations / LaTeX** | ❌ | ✅ (hybrid) | ✅ |
+| **Code blocks** | ❌ | ✅ | ✅ |
+| **Forms** | ❌ | ❌ | ✅ |
+| **Headers/footers removal** | ❌ | ✅ | ✅ |
+| **Reading order detection** | ❌ | ✅ (XY-Cut++) | ✅ |
+| **Images extraction** | ✅ (embedded) | ✅ (with bounding boxes) | ✅ |
+| **EPUB** | ✅ | ❌ | ✅ |
+| **Markdown output** | ✅ (via pymupdf4llm) | ✅ (native) | ✅ (native) |
+| **Benchmark score** | 0.732 | 0.831 local / **0.907** hybrid | 0.861 |
+| **Speed (s/page)** | 0.091 | **0.015** local / 0.46 hybrid | 53.9 (CPU) |
+| **Install size** | ~25MB | ~22MB + **Java 11+ required** | ~3-5GB |
+| **GPU required** | No | No | No (optional) |
 
-**Decision**: Use pymupdf unless you need OCR, equations, forms, or complex layout analysis.
+**Decision**: `opendataloader-pdf` is the best default for local PDFs — fastest, most accurate for text/tables/layout. `marker-pdf` only needed for OCR scanned docs or when hybrid AI mode is worth the 50x slower speed. `pymupdf` is the instant fallback.
 
 If the user needs marker capabilities but the system lacks ~5GB free disk:
 > "This document needs OCR/advanced extraction (marker-pdf), which requires ~5GB for PyTorch and models. Your system has [X]GB free. Options: free up space, provide a URL so I can use web_extract, or I can try pymupdf which works for text-based PDFs but not scanned documents or equations."
