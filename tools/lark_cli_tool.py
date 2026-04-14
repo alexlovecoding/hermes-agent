@@ -326,18 +326,18 @@ def _handle_doc_create(args: Dict[str, Any], **kwargs) -> str:
         result = _run_lark_cli([
             "docs", "+create",
             "--title", title,
-            "--markdown", content
-        ])
+            "--markdown", content,
+        ], add_format_json=False)
     elif doc_type == "sheet":
         result = _run_lark_cli([
             "sheets", "+create",
             "--title", title
-        ])
+        ], add_format_json=False)
     elif doc_type == "bitable":
         result = _run_lark_cli([
             "base", "+create",
             "--name", title
-        ])
+        ], add_format_json=False)
     else:
         return json.dumps({
             "ok": False,
