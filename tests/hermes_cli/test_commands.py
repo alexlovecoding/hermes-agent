@@ -138,6 +138,12 @@ class TestDerivedDicts:
         assert "/reload_mcp" in COMMANDS
         assert "/gateway" in COMMANDS
 
+    def test_mode_command_is_registered(self):
+        assert "/mode" in COMMANDS
+        mode_cmd = resolve_command("mode")
+        assert mode_cmd is not None
+        assert mode_cmd.name == "mode"
+
     def test_commands_by_category_covers_all_categories(self):
         registry_categories = {cmd.category for cmd in COMMAND_REGISTRY if not cmd.gateway_only}
         assert set(COMMANDS_BY_CATEGORY.keys()) == registry_categories
