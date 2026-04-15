@@ -220,3 +220,34 @@ def test_new_session_resets_token_counters(tmp_path):
     assert comp.last_total_tokens == 0
     assert comp.compression_count == 0
     assert comp._context_probed is False
+
+
+def test_mode_command_sets_and_clears_session_mode():
+    cli = _make_cli()
+
+    assert cli._session_role_mode == "default"
+
+    cli.process_command("/mode maintainer")
+    assert cli._session_role_mode == "maintainer"
+
+    cli.process_command("/mode planning")
+    assert cli._session_role_mode == "planning"
+
+    cli.process_command("/mode clear")
+    assert cli._session_role_mode == "default"
+
+
+def test_new_and_reset_clear_session_mode(tmp_path):
+    cli = _prepare_cli_with_active_session(tmp_path)
+
+    cli.process_command("/mode maintainer")
+    assert cli._session_role_mode == "maintainer"
+
+    cli.process_command("/new")
+    assert cli._session_role_mode == "default"
+
+    cli.process_command("/mode planning")
+    assert cli._session_role_mode == "planning"
+
+    cli.process_command("/reset")
+    assert cli._session_role_mode == "default"

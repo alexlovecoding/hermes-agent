@@ -1777,6 +1777,8 @@ class HermesCLI:
         self.conversation_history: List[Dict[str, Any]] = []
         self.session_start = datetime.now()
         self._resumed = False
+        # Session-scoped role mode (/mode): default, research, maintainer, planning
+        self._session_role_mode: str = "default"
         # Initialize SQLite session store early so /title works before first message
         self._session_db = None
         try:
@@ -3716,6 +3718,33 @@ class HermesCLI:
             f"Agent Running: {'Yes' if is_running else 'No'}",
         ])
         self.console.print("\n".join(lines), highlight=False, markup=False)
+
+    def _handle_mode_command(self, cmd_original: str) -> None:
+        """Handle /mode [status|research|maintainer|planning|default|clear]."""
+        parts = cmd_original.split(None, 1)
+        arg = parts[1].strip().lower() if len(parts) > 1 else ""
+
+        current = (getattr(self, "_session_role_mode", "default") or "default").strip().lower()
+        allowed = ("default", "research", "maintainer", "planning")
+
+        if not arg or arg == "status":
+            _cprint(f"  Session mode: {current}")
+            _cprint("  Available: default, research, maintainer, planning")
+            _cprint("  Usage: /mode <status|research|maintainer|planning|clear>")
+            return
+
+        if arg == "clear":
+            self._session_role_mode = "default"
+            _cprint("  Session mode cleared -> default")
+            return
+
+        if arg in allowed:
+            self._session_role_mode = arg
+            _cprint(f"  Session mode set -> {arg}")
+            return
+
+        _cprint(f"  Unknown mode: {arg}")
+        _cprint("  Available: default, research, maintainer, planning")
     
     def _fast_command_available(self) -> bool:
         try:
@@ -4118,6 +4147,7 @@ class HermesCLI:
         self.conversation_history = []
         self._pending_title = None
         self._resumed = False
+        self._session_role_mode = "default"
 
         if self.agent:
             self.agent.session_id = self.session_id
@@ -5439,6 +5469,8 @@ class HermesCLI:
             self._show_gateway_status()
         elif canonical == "status":
             self._show_session_status()
+        elif canonical == "mode":
+            self._handle_mode_command(cmd_original)
         elif canonical == "statusbar":
             self._status_bar_visible = not self._status_bar_visible
             state = "visible" if self._status_bar_visible else "hidden"
