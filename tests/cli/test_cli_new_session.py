@@ -251,3 +251,20 @@ def test_new_and_reset_clear_session_mode(tmp_path):
 
     cli.process_command("/reset")
     assert cli._session_role_mode == "default"
+
+
+def test_apply_session_mode_prefix_default_is_noop():
+    cli = _make_cli()
+    text = "hello"
+    assert cli._apply_session_mode_prefix(text) == text
+
+
+def test_apply_session_mode_prefix_maintainer_adds_routing_hint():
+    cli = _make_cli()
+    cli._session_role_mode = "maintainer"
+
+    out = cli._apply_session_mode_prefix("check gateway")
+
+    assert out.startswith("[Session mode: maintainer")
+    assert "system-maintainer" in out
+    assert out.endswith("check gateway")

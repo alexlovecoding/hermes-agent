@@ -153,3 +153,23 @@ async def test_new_command_clears_session_role_mode():
     await runner._handle_reset_command(_make_event("/new"))
 
     assert session_key not in runner._session_role_modes
+
+
+@pytest.mark.asyncio
+async def test_prepare_inbound_message_applies_session_mode_prefix():
+    """Non-default /mode should inject a routing hint into prepared user text."""
+    runner = _make_runner()
+    source = _make_source()
+    session_key = build_session_key(source)
+    runner._session_role_modes[session_key] = "maintainer"
+
+    prepared = await runner._prepare_inbound_message_text(
+        event=_make_event("check logs"),
+        source=source,
+        history=[],
+    )
+
+    assert prepared is not None
+    assert prepared.startswith("[Session mode: maintainer")
+    assert "system-maintainer" in prepared
+    assert prepared.endswith("check logs")

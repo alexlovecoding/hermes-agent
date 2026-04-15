@@ -3106,6 +3106,9 @@ class GatewayRunner:
             except Exception as exc:
                 logger.debug("@ context reference expansion failed: %s", exc)
 
+        session_key = build_session_key(source)
+        message_text = self._apply_session_mode_prefix(session_key, message_text)
+
         return message_text
 
     async def _handle_message_with_agent(self, event, source, _quick_key: str):
@@ -4165,6 +4168,23 @@ class GatewayRunner:
             "Available: `default`, `research`, `maintainer`, `planning`\n"
             "Usage: `/mode <status|research|maintainer|planning|clear>`"
         )
+
+    def _apply_session_mode_prefix(self, session_key: str, message_text: str) -> str:
+        """Inject a routing hint into user text for non-default /mode sessions."""
+        mode = (self._session_role_modes.get(session_key) or "default").strip().lower()
+        if mode == "default" or not message_text:
+            return message_text
+
+        if message_text.startswith("[Session mode:"):
+            return message_text
+
+        hint_map = {
+            "research": "Prefer research-assistant framing: rigorous evidence, citations, and structured analysis.",
+            "maintainer": "Prefer system-maintainer framing: operational diagnosis, concrete checks, and verified fixes.",
+            "planning": "Prefer planner-critic framing: requirements decomposition, trade-offs, and milestone-based execution.",
+        }
+        hint = hint_map.get(mode, "Use this mode as the default reasoning frame for ambiguous requests.")
+        return f"[Session mode: {mode}. {hint}]\n\n{message_text}"
     
     async def _handle_stop_command(self, event: MessageEvent) -> str:
         """Handle /stop command - interrupt a running agent.

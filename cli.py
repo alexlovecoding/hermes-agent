@@ -3745,6 +3745,23 @@ class HermesCLI:
 
         _cprint(f"  Unknown mode: {arg}")
         _cprint("  Available: default, research, maintainer, planning")
+
+    def _apply_session_mode_prefix(self, message_text: str) -> str:
+        """Inject a lightweight routing hint for non-default session mode."""
+        mode = (getattr(self, "_session_role_mode", "default") or "default").strip().lower()
+        if mode == "default" or not message_text:
+            return message_text
+
+        if message_text.startswith("[Session mode:"):
+            return message_text
+
+        hint_map = {
+            "research": "Prefer research-assistant framing: rigorous evidence, citations, and structured analysis.",
+            "maintainer": "Prefer system-maintainer framing: operational diagnosis, concrete checks, and verified fixes.",
+            "planning": "Prefer planner-critic framing: requirements decomposition, trade-offs, and milestone-based execution.",
+        }
+        hint = hint_map.get(mode, "Use this mode as the default reasoning frame for ambiguous requests.")
+        return f"[Session mode: {mode}. {hint}]\n\n{message_text}"
     
     def _fast_command_available(self) -> bool:
         try:
@@ -7694,11 +7711,18 @@ class HermesCLI:
                     if text_queue is not None:
                         text_queue.put(delta)
 
+            # Apply explicit session mode hint to this API call only.
+            _mode_prefixed_message = (
+                self._apply_session_mode_prefix(message)
+                if isinstance(message, str)
+                else message
+            )
+
             # When voice mode is active, prepend a brief instruction so the
             # model responds concisely. The prefix is API-call-local only —
             # run_conversation persists the original clean user message.
             _voice_prefix = ""
-            if self._voice_mode and isinstance(message, str):
+            if self._voice_mode and isinstance(_mode_prefixed_message, str):
                 _voice_prefix = (
                     "[Voice input — respond concisely and conversationally, "
                     "2-3 sentences max. No code blocks or markdown.] "
@@ -7706,19 +7730,26 @@ class HermesCLI:
 
             def run_agent():
                 nonlocal result
-                agent_message = _voice_prefix + message if _voice_prefix else message
+                agent_message = _voice_prefix + _mode_prefixed_message if _voice_prefix else _mode_prefixed_message
                 # Prepend pending model switch note so the model knows about the switch
                 _msn = getattr(self, '_pending_model_switch_note', None)
                 if _msn:
                     agent_message = _msn + "\n\n" + agent_message
                     self._pending_model_switch_note = None
                 try:
+                    _need_clean_persist = (
+                        isinstance(message, str)
+                        and (
+                            _mode_prefixed_message != message
+                            or bool(_voice_prefix)
+                        )
+                    )
                     result = self.agent.run_conversation(
                         user_message=agent_message,
                         conversation_history=self.conversation_history[:-1],  # Exclude the message we just added
                         stream_callback=stream_callback,
                         task_id=self.session_id,
-                        persist_user_message=message if _voice_prefix else None,
+                        persist_user_message=message if _need_clean_persist else None,
                     )
                 except Exception as exc:
                     logging.error("run_conversation raised: %s", exc, exc_info=True)
