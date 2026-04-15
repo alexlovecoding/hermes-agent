@@ -530,6 +530,7 @@ class GatewayRunner:
     _restart_via_service: bool = False
     _stop_task: Optional[asyncio.Task] = None
     _session_model_overrides: Dict[str, Dict[str, str]] = {}
+    _session_role_modes: Dict[str, str] = {}
     
     def __init__(self, config: Optional[GatewayConfig] = None):
         self.config = config or load_gateway_config()
@@ -586,6 +587,10 @@ class GatewayRunner:
         # Per-session model overrides from /model command.
         # Key: session_key, Value: dict with model/provider/api_key/base_url/api_mode
         self._session_model_overrides: Dict[str, Dict[str, str]] = {}
+
+        # Per-session role mode overrides from /mode command.
+        # Key: session_key, Value: one of: default/research/maintainer/planning
+        self._session_role_modes: Dict[str, str] = {}
         # Track pending exec approvals per session
         # Key: session_key, Value: {"command": str, "pattern_key": str, ...}
         self._pending_approvals: Dict[str, Dict[str, Any]] = {}
@@ -2689,6 +2694,9 @@ class GatewayRunner:
         if canonical == "status":
             return await self._handle_status_command(event)
 
+        if canonical == "mode":
+            return await self._handle_mode_command(event)
+
         if canonical == "restart":
             return await self._handle_restart_command(event)
         
@@ -3997,6 +4005,10 @@ class GatewayRunner:
         # the configured default instead of the previously switched model.
         self._session_model_overrides.pop(session_key, None)
 
+        # Clear any session-scoped role mode override so /new starts from
+        # default representative-agent mode.
+        self._session_role_modes.pop(session_key, None)
+
         # Fire plugin on_session_finalize hook (session boundary)
         try:
             from hermes_cli.plugins import invoke_hook as _invoke_hook
@@ -4118,6 +4130,41 @@ class GatewayRunner:
         ])
 
         return "\n".join(lines)
+
+    async def _handle_mode_command(self, event: MessageEvent) -> str:
+        """Handle /mode [status|research|maintainer|planning|default|clear]."""
+        source = event.source
+        session_entry = self.session_store.get_or_create_session(source)
+        session_key = session_entry.session_key
+
+        arg = (event.get_command_args() or "").strip().lower()
+        current = (self._session_role_modes.get(session_key) or "default").strip().lower()
+        allowed = ("default", "research", "maintainer", "planning")
+
+        if not arg or arg == "status":
+            return (
+                "🧭 **Session Mode**\n"
+                f"Current: `{current}`\n"
+                "Available: `default`, `research`, `maintainer`, `planning`\n"
+                "Usage: `/mode <status|research|maintainer|planning|clear>`"
+            )
+
+        if arg == "clear":
+            self._session_role_modes.pop(session_key, None)
+            return "✅ Session mode cleared: `default`"
+
+        if arg in allowed:
+            if arg == "default":
+                self._session_role_modes.pop(session_key, None)
+            else:
+                self._session_role_modes[session_key] = arg
+            return f"✅ Session mode set: `{arg}`"
+
+        return (
+            f"Unknown mode: `{arg}`\n"
+            "Available: `default`, `research`, `maintainer`, `planning`\n"
+            "Usage: `/mode <status|research|maintainer|planning|clear>`"
+        )
     
     async def _handle_stop_command(self, event: MessageEvent) -> str:
         """Handle /stop command - interrupt a running agent.

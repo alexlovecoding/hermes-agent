@@ -37,6 +37,7 @@ def _make_runner():
     runner._voice_mode = {}
     runner.hooks = SimpleNamespace(emit=AsyncMock(), loaded_hooks=False)
     runner._session_model_overrides = {}
+    runner._session_role_modes = {}
     runner._pending_model_notes = {}
     runner._background_tasks = set()
 
@@ -108,14 +109,14 @@ async def test_new_command_only_clears_own_session():
     runner._session_model_overrides[session_key] = {
         "model": "gpt-4o",
         "provider": "openai",
-        "api_key": "sk-test",
+        "api_key": "***",
         "base_url": "",
         "api_mode": "openai",
     }
     runner._session_model_overrides[other_key] = {
         "model": "claude-sonnet-4-6",
         "provider": "anthropic",
-        "api_key": "sk-ant-test",
+        "api_key": "***",
         "base_url": "",
         "api_mode": "anthropic",
     }
@@ -124,3 +125,31 @@ async def test_new_command_only_clears_own_session():
 
     assert session_key not in runner._session_model_overrides
     assert other_key in runner._session_model_overrides
+
+
+@pytest.mark.asyncio
+async def test_mode_command_sets_and_clears_session_role_mode():
+    """/mode should set per-session role mode and /mode clear should remove it."""
+    runner = _make_runner()
+    session_key = build_session_key(_make_source())
+
+    set_resp = await runner._handle_message(_make_event("/mode maintainer"))
+    assert runner._session_role_modes.get(session_key) == "maintainer"
+    assert "maintainer" in (set_resp or "").lower()
+
+    clear_resp = await runner._handle_message(_make_event("/mode clear"))
+    assert session_key not in runner._session_role_modes
+    assert "default" in (clear_resp or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_new_command_clears_session_role_mode():
+    """/new must clear session-scoped /mode state for that session."""
+    runner = _make_runner()
+    session_key = build_session_key(_make_source())
+
+    runner._session_role_modes[session_key] = "maintainer"
+
+    await runner._handle_reset_command(_make_event("/new"))
+
+    assert session_key not in runner._session_role_modes
